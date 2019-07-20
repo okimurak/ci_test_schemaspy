@@ -1,16 +1,25 @@
-version: 2
+version: 2.1
+executors:
+  test:
+    docker:
+      - image: circleci/python:3.7
+        user: root
 jobs:
   build:
-    docker:
-      - image: debian:stretch
-
+    executor:
+      name: test
     steps:
       - checkout
-
+      - setup_remote_docker:
+          version: 18.03.0-ce
       - run:
-          name: Greeting
-          command: echo Hello, world.
-
+          name: up mysql
+          command: |
+            docker network create test_network
+            docker run --name test_mysql --network test_network -e MYSQL_ROOT_PASSWORD=secret -e MYSQL_DATABASE=test -d mysql:5.7
       - run:
-          name: Print the Current Time
-          command: date
+          name: connect dummy container for volume
+          command: |
+            docker create -v / --name configs alpine:3.4 /bin/true
+            docker cp ./schemaspy/test.properties configs:/
+            docker run --volumes-from configs schemaspy/schemaspy:shapshot -rails
